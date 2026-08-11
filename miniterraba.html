@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bridge Fishing - Supabase Global</title>
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 10px;
+            background-color: #0e1117; color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 100vh; overflow-x: hidden;
+        }
+
+        .auth-card {
+            background: #1f2430; border: 1px solid #363d4e; border-radius: 12px;
+            padding: 20px; width: 100%; max-width: 400px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.8); margin-bottom: 15px;
+        }
+        .auth-card h2 { text-align: center; color: #80deea; margin-top: 0; font-size: 20px; }
+        .auth-card input {
+            width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px;
+            border: 1px solid #363d4e; background: #0e1117; color: #fff;
+            font-size: 14px; outline: none; font-family: inherit;
+        }
+        .auth-card button {
+            width: 100%; padding: 12px; border-radius: 8px; border: none;
+            font-weight: bold; cursor: pointer; font-size: 14px; margin-top: 8px;
+            font-family: inherit;
+        }
+        .btn-register-net { background: #00c853; color: #fff; }
+        .btn-login-net { background: #3f51b5; color: #fff; }
+
+        #statusBox {
+            display: none; padding: 10px; border-radius: 8px; margin-bottom: 10px;
+            font-size: 12px; text-align: center; font-weight: bold; width: 100%; max-width: 400px;
+            word-break: break-word;
+        }
+
+        .fish-legend-bar {
+            width: 100%; background: #090b10; border-bottom: 2px solid #232936;
+            padding: 6px 4px; display: flex; justify-space-around;
+            align-items: center; border-radius: 8px 8px 0 0;
+        }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: bold; color: #ffd54f; }
+        .fish-icon { width: 20px; height: 10px; border-radius: 10px; display: inline-block; }
+
+        #mobileContainer { width: 100%; max-width: 480px; display: none; flex-direction: column; align-items: center; }
+        #gameWrapper {
+            position: relative; width: 100%; aspect-ratio: 4 / 3;
+            border: 3px solid #fff; border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0, 255, 255, 0.15), 0 10px 25px rgba(0, 0, 0, 0.9);
+            overflow: hidden; background: #000;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        #uiPanel {
+            display: flex; flex-direction: column; width: 100%; gap: 10px;
+            background: #1f2430; padding: 12px; border-radius: 12px;
+            margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid #363d4e;
+        }
+        .ui-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .stat-box { font-size: 13px; font-weight: bold; color: #e0f7fa; display: flex; flex-direction: column; }
+        .stat-value { color: #ffd54f; font-size: 16px; margin-top: 2px; }
+
+        .admin-btn {
+            color: #fff; border: 2px solid #fff; padding: 5px 8px; font-size: 10px;
+            font-weight: bold; border-radius: 20px; cursor: pointer; font-family: inherit;
+        }
+        #addBalanceBtn { background: #00c853; }
+        #clearBalanceBtn { background: #d32f2f; }
+
+        .btn-start-game {
+            width: 100%; padding: 12px; background: #00e676; color: #000;
+            border: 2px solid #fff; font-weight: bold; font-size: 15px;
+            border-radius: 8px; cursor: pointer; font-family: inherit;
+            box-shadow: 0 4px 10px rgba(0,230,118,0.3); text-align: center;
+        }
+        .btn-start-game.active {
+            background: #ff9800; color: #fff; box-shadow: 0 4px 10px rgba(255,152,0,0.3);
+        }
+
+        #betControls {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; background: #0e1117; padding: 8px; border-radius: 20px; border: 1px solid #fff;
+        }
+        .chip {
+            width: 38px; height: 38px; border-radius: 50%; border: 2px dashed #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 11px; color: #000; background: #ffb300;
+        }
+
+        .shop-section {
+            background: #151821; border: 1px solid #363d4e; border-radius: 8px;
+            padding: 8px; display: flex; flex-direction: column; gap: 6px;
+        }
+        .shop-title { font-size: 11px; font-weight: bold; color: #80deea; text-transform: uppercase; }
+        .shop-buttons { display: flex; gap: 6px; overflow-x: auto; }
+
+        .buy-btn {
+            background: #3f51b5; color: #fff; border: 1px solid #7986cb;
+            padding: 5px 8px; font-size: 10px; border-radius: 6px; cursor: pointer;
+            font-family: inherit; flex: 1; white-space: nowrap;
+        }
+        .buy-btn.equipped { background: #2e7d32; border-color: #81c784; }
+
+        .buy-fish-btn {
+            background: #e65100; color: #fff; border: 1px solid #ff9800;
+            padding: 5px 8px; font-size: 10px; border-radius: 6px; cursor: pointer;
+            font-family: inherit; flex: 1; white-space: nowrap;
+        }
+
+        #timerBox { font-size: 12px; color: #81d4fa; text-align: center; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="statusBox"></div>
+
+    <div id="authCard" class="auth-card">
+        <h2>🌉 BRIDGE FISHING - GLOBAL</h2>
+        <p style="font-size: 11px; text-align: center; color: #80deea; margin-bottom: 12px;">Acceso en la Nube / Local</p>
+        
+        <input type="text" id="username" placeholder="Nombre de usuario" autocomplete="off" autocapitalize="none">
+        <input type="password" id="password" placeholder="Contraseña">
+        
+        <button type="button" class="btn-register-net" onclick="handleRegister()">REGISTRARSE Y JUGAR</button>
+        <button type="button" class="btn-login-net" onclick="login()">INICIAR SESIÓN</button>
+    </div>
+
+    <div id="mobileContainer">
+        <div class="fish-legend-bar">
+            <div class="legend-item"><span class="fish-icon" style="background:#29b6f6;"></span> x1</div>
+            <div class="legend-item"><span class="fish-icon" style="background:#ab47bc;"></span> x2</div>
+            <div class="legend-item"><span class="fish-icon" style="background:#ffb300;"></span> x4</div>
+            <div class="legend-item"><span class="fish-icon" style="background:#ff1744;"></span> x8</div>
+        </div>
+
+        <div id="gameWrapper">
+            <canvas id="gameCanvas" width="800" height="800"></canvas>
+        </div>
+
+        <div id="uiPanel">
+            <div class="ui-row">
+                <div class="stat-box">
+                    USUARIO: <span id="currentUserDisplay" style="color:#80deea; font-size:11px;">-</span>
+                    SALDO
+                    <span id="balance" class="stat-value">¢0.00</span>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button id="addBalanceBtn" class="admin-btn" onclick="promptAddBalance()">➕ RECARGAR</button>
+                    <button id="clearBalanceBtn" class="admin-btn" onclick="clearBalance()">🗑️ ELIMINAR</button>
+                </div>
+                <div class="stat-box" style="text-align: right;">
+                    ÚLTIMO PREMIO
+                    <span id="lastWin" class="stat-value">¢0.00</span>
+                </div>
+            </div>
+            
+            <div class="ui-row">
+                <div id="betControls">
+                    <span style="font-size: 11px; font-weight: bold;">APUESTA FIJA:</span>
+                    <div class="chip">¢100</div>
+                </div>
+            </div>
+
+            <!-- BOTÓN INICIAR / PAUSAR -->
+            <button id="startGameBtn" class="btn-start-game" onclick="toggleGameStart()">▶️ INICIAR JUEGO</button>
+
+            <div id="timerBox">Presiona "INICIAR JUEGO" para comenzar</div>
+
+            <div class="shop-section">
+                <div class="shop-title">🎣 Cañas (Profundidad Máxima)</div>
+                <div class="shop-buttons">
+                    <button id="rod0" class="buy-btn equipped" onclick="buyRod(0)">Básica (450px)</button>
+                    <button id="rod1" class="buy-btn" onclick="buyRod(1)">Pro (550px - ¢200)</button>
+                    <button id="rod2" class="buy-btn" onclick="buyRod(2)">Abisal (650px - ¢500)</button>
+                    <button id="rod3" class="buy-btn" onclick="buyRod(3)">Leyenda (750px - ¢1000)</button>
+                </div>
+            </div>
+
+            <div class="shop-section">
+                <div class="shop-title">🐟 Comprar Peces (Liberar en Río)</div>
+                <div class="shop-buttons">
+                    <button class="buy-fish-btn" style="background:#fbc02d; color:#000;" onclick="buyCustomFish('yellow')">Amarillo x3 (¢200)</button>
+                    <button class="buy-fish-btn" style="background:#795548;" onclick="buyCustomFish('brown')">Café x5 (¢400)</button>
+                    <button class="buy-fish-btn" style="background:#f57c00;" onclick="buyCustomFish('orange')">Naranja x10 (¢1000)</button>
+                </div>
+            </div>
+            
+            <button onclick="logout()" class="admin-btn" style="background:#d32f2f; margin-top:5px;">CERRAR SESIÓN</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://yvrkgphoplopfdolmrbu.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInRefiI6Inl2cmtncGhvcGxvcGZkb2xtcmJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA0OTEsImV4cCI6MjEwMTk3NjQ5MX0.kPKsixFx8UXCAlCFI8STYmWY9BYTb2iOPngUknFhT5Q";
+
+        let _supabase = null;
+        try {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch(e) {
+            console.log("Supabase client init fail:", e);
+        }
+
+        let shotsSinceLastWin = 0;
+        let activeUser = "";
+        let balance = 0.00;
+        let isGameStarted = false;
+        let timerSeconds = 5;
+
+        function showStatus(msg, isError = false) {
+            const box = document.getElementById("statusBox");
+            box.style.display = "block";
+            box.style.background = isError ? "#d32f2f" : "#00c853";
+            box.innerText = msg;
+        }
+
+        async function handleRegister() {
+            const user = document.getElementById("username").value.trim().toLowerCase();
+            const pass = document.getElementById("password").value;
+            if (!user || !pass) return showStatus("Ingresa usuario y contraseña", true);
+
+            showStatus("Entrando...", false);
+
+            if (_supabase) {
+                try {
+                    const supabasePromise = _supabase.from('usuarios').select('*').eq('username', user).maybeSingle();
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("Timeout"), 2000));
+                    
+                    const res = await Promise.race([supabasePromise, timeoutPromise]);
+                    if (res && res.data) {
+                        return showStatus("El usuario ya existe. Intenta iniciar sesión.", true);
+                    }
+                    if (res && !res.error) {
+                        await _supabase.from('usuarios').insert([{ username: user, password: pass, balance: 0 }]);
+                    }
+                } catch (err) {
+                    console.log("Supabase omitido, usando almacenamiento local:", err);
+                }
+            }
+
+            localStorage.setItem("pass_" + user, pass);
+            const savedBal = parseFloat(localStorage.getItem("bal_" + user) || 0);
+            startSession(user, savedBal);
+        }
+
+        async function login() {
+            const user = document.getElementById("username").value.trim().toLowerCase();
+            const pass = document.getElementById("password").value;
+            if (!user || !pass) return showStatus("Ingresa credenciales", true);
+
+            showStatus("Iniciando sesión...", false);
+
+            if (_supabase) {
+                try {
+                    const supabasePromise = _supabase.from('usuarios').select('*').eq('username', user).maybeSingle();
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("Timeout"), 2000));
+
+                    const { data } = await Promise.race([supabasePromise, timeoutPromise]);
+                    if (data) {
+                        if (data.password === pass) {
+                            startSession(user, parseFloat(data.balance || 0));
+                            return;
+                        } else {
+                            return showStatus("Contraseña incorrecta", true);
+                        }
+                    }
+                } catch (err) {
+                    console.log("Supabase login omitido:", err);
+                }
+            }
+
+            const savedPass = localStorage.getItem("pass_" + user);
+            if (!savedPass || savedPass === pass) {
+                const savedBal = parseFloat(localStorage.getItem("bal_" + user) || 0);
+                startSession(user, savedBal);
+            } else {
+                showStatus("Contraseña incorrecta", true);
+            }
+        }
+
+        function startSession(username, initialBalance) {
+            activeUser = username;
+            balance = initialBalance;
+            document.getElementById("authCard").style.display = "none";
+            document.getElementById("statusBox").style.display = "none";
+            document.getElementById("mobileContainer").style.display = "flex";
+            document.getElementById("currentUserDisplay").innerText = username;
+            
+            isGameStarted = false;
+            document.getElementById("timerBox").innerText = 'Presiona "INICIAR JUEGO" para comenzar';
+            
+            updateUI();
+            startWaterAmbience();
+            requestAnimationFrame(gameLoop);
+        }
+
+        async function saveUserData() {
+            if (!activeUser) return;
+            localStorage.setItem("bal_" + activeUser, balance);
+            
+            if (_supabase) {
+                try {
+                    await _supabase.from('usuarios').update({ balance: balance }).eq('username', activeUser);
+                } catch(e) {}
+            }
+        }
+
+        function logout() { location.reload(); }
+
+        function toggleGameStart() {
+            unlockAudio();
+            startWaterAmbience();
+            const btn = document.getElementById("startGameBtn");
+            if (!isGameStarted) {
+                if (balance < selectedBet) {
+                    alert("Por favor recarga saldo antes de empezar.");
+                    return;
+                }
+                isGameStarted = true;
+                btn.innerText = "⏸️ PAUSAR JUEGO";
+                btn.classList.add("active");
+                timerSeconds = 5;
+                document.getElementById("timerBox").innerHTML = `Tiro automático en: <span id="countdown">${timerSeconds}</span>s`;
+            } else {
+                isGameStarted = false;
+                btn.innerText = "▶️ INICIAR JUEGO";
+                btn.classList.remove("active");
+                document.getElementById("timerBox").innerText = "Juego pausado";
+            }
+        }
+
+        let audioCtx = null;
+        let ambientWaterNode = null;
+
+        function unlockAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        window.addEventListener('touchstart', unlockAudio, { once: false });
+        window.addEventListener('click', unlockAudio, { once: false });
+
+        function startWaterAmbience() {
+            unlockAudio();
+            if (!audioCtx || ambientWaterNode) return;
+            try {
+                const bufferSize = 2 * audioCtx.sampleRate;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                let lastOut = 0.0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    output[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = output[i];
+                    output[i] *= 3.5;
+                }
+
+                const whiteNoise = audioCtx.createBufferSource();
+                whiteNoise.buffer = noiseBuffer;
+                whiteNoise.loop = true;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+
+                whiteNoise.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                whiteNoise.start();
+                ambientWaterNode = whiteNoise;
+            } catch(e) {}
+        }
+
+        function playSound(type) {
+            unlockAudio();
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if (type === 'drop') {
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(70, now + 0.4);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'catch') {
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(650, now + 0.25);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'win') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523, now);
+                    osc.frequency.setValueAtTime(659, now + 0.1);
+                    osc.frequency.setValueAtTime(783, now + 0.2);
+                    osc.frequency.setValueAtTime(1046, now + 0.3);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now); osc.stop(now + 0.5);
+                }
+            } catch(e) {}
+        }
+
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const selectedBet = 100;
+        const surfaceY = 200; 
+        const fishermanX = 410;
+        const fishermanY = 170;
+        const rods = [
+            { id: 0, name: "Básica", price: 0, depth: 450, owned: true, color: "#8d6e63" },
+            { id: 1, name: "Pro", price: 200, depth: 550, owned: false, color: "#29b6f6" },
+            { id: 2, name: "Abisal", price: 500, depth: 650, owned: false, color: "#ab47bc" },
+            { id: 3, name: "Leyenda", price: 1000, depth: 750, owned: false, color: "#ffca28" }
+        ];
+        let currentRod = rods[0];
+        const hook = { 
+            x: fishermanX + 35, y: surfaceY, speed: 8, minY: fishermanY - 20, 
+            caughtFish: null, targetFish: null, isDropping: false, isRetracting: false,
+            reset: function() {
+                this.x = fishermanX + 35; this.y = surfaceY; this.isDropping = false;
+                this.isRetracting = false; this.caughtFish = null; this.targetFish = null;
+            }
+        };
+
+        const fishTypes = [
+            { color: '#29b6f6', minMult: 1, maxMult: 1, size: 18, speed: 2.8, minY: 230, maxY: 380 },
+            { color: '#ab47bc', minMult: 2, maxMult: 2, size: 22, speed: 3.2, minY: 390, maxY: 520 },
+            { color: '#ffb300', minMult: 4, maxMult: 4, size: 28, speed: 2.2, minY: 530, maxY: 650 }, 
+            { color: '#ff1744', fixedMult: 8, size: 35, speed: 4.5, minY: 660, maxY: 760 }   
+        ];
+
+        let fishes = [];
+        function spawnFish() {
+            if (fishes.length >= 12) return;
+            const rand = Math.random();
+            let typeIndex = rand < 0.40 ? 0 : rand < 0.70 ? 1 : rand < 0.90 ? 2 : 3;
+            const type = fishTypes[typeIndex];
+            const direction = Math.random() < 0.5 ? 1 : -1;
+            const x = direction === 1 ? -60 : canvas.width + 60;
+            let y = type.minY + Math.random() * (type.maxY - type.minY);
+            let multiplier = type.fixedMult ? type.fixedMult : (Math.floor(Math.random() * (type.maxMult - type.minMult + 1)) + type.minMult);
+            fishes.push({
+                x, y, size: type.size, color: type.color,
+                speed: type.speed * direction, direction, multiplier, isCaught: false, bubbles: []
+            });
+        }
+        for (let i = 0; i < 6; i++) spawnFish();
+        setInterval(spawnFish, 3000);
+
+        function buyCustomFish(type) {
+            let price = 0, mult = 0, color = "", spawnDepth = 300;
+            if (type === 'yellow') { price = 200; mult = 3; color = "#ffeb3b"; spawnDepth = 300; }
+            else if (type === 'brown') { price = 400; mult = 5; color = "#8d6e63"; spawnDepth = 480; }
+            else if (type === 'orange') { price = 1000; mult = 10; color = "#ff9800"; spawnDepth = 620; }
+            if (balance >= price) {
+                balance -= price;
+                updateUI();
+                const direction = Math.random() < 0.5 ? 1 : -1;
+                const x = direction === 1 ? -60 : canvas.width + 60;
+                fishes.push({
+                    x, y: spawnDepth, size: 26, color: color,
+                    speed: 3 * direction, direction, multiplier: mult, isCaught: false, bubbles: []
+                });
+            } else {
+                alert("Saldo insuficiente para comprar este pez.");
+            }
+        }
+
+        function buyRod(id) {
+            const rod = rods[id];
+            if (rod.owned) { currentRod = rod; } 
+            else if (balance >= rod.price) { balance -= rod.price; rod.owned = true; currentRod = rod; updateUI(); } 
+            else { alert("Saldo insuficiente."); }
+            updateShopUI();
+        }
+
+        function updateShopUI() {
+            rods.forEach((r, i) => {
+                const btn = document.getElementById(`rod${i}`);
+                if (r === currentRod) { btn.className = "buy-btn equipped"; btn.innerText = `${r.name} (${r.depth}px - Equipada)`; }
+                else if (r.owned) { btn.className = "buy-btn"; btn.innerText = `${r.name} (${r.depth}px)`; }
+                else { btn.className = "buy-btn"; btn.innerText = `${r.name} (¢${r.price})`; }
+            });
+        }
+
+        setInterval(() => {
+            if (isGameStarted && !hook.isDropping && !hook.isRetracting && activeUser) {
+                if (balance >= selectedBet) {
+                    timerSeconds--;
+                    document.getElementById("timerBox").innerHTML = `Tiro automático en: <span id="countdown">${timerSeconds}</span>s`;
+                    if (timerSeconds <= 0) {
+                        performAction();
+                        timerSeconds = 5;
+                    }
+                } else {
+                    document.getElementById("timerBox").innerHTML = `<b style="color:#ff5252;">¡RECARGA SALDO PARA JUGAR!</b>`;
+                    isGameStarted = false;
+                    const btn = document.getElementById("startGameBtn");
+                    btn.innerText = "▶️ INICIAR JUEGO";
+                    btn.classList.remove("active");
+                }
+            }
+        }, 1000);
+
+        function promptAddBalance() {
+            const code = prompt("Ingrese el código secreto para recargar:");
+            if (code === "Danny12") {
+                const amount = parseFloat(prompt("Ingrese la cantidad a añadir:", "1000"));
+                if (!isNaN(amount) && amount > 0) { balance += amount; updateUI(); }
+            } else if (code !== null) { alert("Código incorrecto"); }
+        }
+
+        function clearBalance() {
+            if (confirm("¿Seguro que deseas eliminar todo tu saldo?")) { balance = 0; updateUI(); }
+        }
+
+        function performAction() {
+            if (hook.isDropping || hook.isRetracting || balance < selectedBet) return;
+            balance -= selectedBet;
+            updateUI();
+            let isWinningTurn = (shotsSinceLastWin >= 5);
+            if (isWinningTurn) {
+                const availableFishes = fishes.filter(f => !f.isCaught && f.y <= currentRod.depth);
+                if (availableFishes.length > 0) {
+                    hook.targetFish = availableFishes.reduce((prev, curr) => {
+                        return (Math.abs(curr.x - hook.x) < Math.abs(prev.x - hook.x)) ? curr : prev;
+                    });
+                } else { hook.targetFish = null; }
+                shotsSinceLastWin = 0;
+            } else { hook.targetFish = null; shotsSinceLastWin++; }
+            hook.isDropping = true; timerSeconds = 5; playSound('drop');
+        }
+
+        function updateUI() {
+            document.getElementById("balance").innerText = `¢${balance.toFixed(2)}`;
+            updateShopUI();
+            saveUserData();
+        }
+
+        function update() {
+            if (hook.isDropping) {
+                const targetY = hook.targetFish ? hook.targetFish.y : currentRod.depth;
+                hook.y += hook.speed;
+                if (hook.y >= targetY || hook.y >= currentRod.depth) { hook.isDropping = false; hook.isRetracting = true; }
+            } else if (hook.isRetracting) {
+                hook.y -= hook.speed;
+                if (hook.caughtFish) { hook.caughtFish.y = hook.y + 15; hook.caughtFish.x = hook.x; }
+                if (hook.y <= hook.minY) {
+                    if (hook.caughtFish) {
+                        const winAmount = selectedBet * hook.caughtFish.multiplier;
+                        balance += winAmount;
+                        document.getElementById("lastWin").innerText = `¢${winAmount.toFixed(2)}`;
+                        playSound('win');
+                        fishes = fishes.filter(f => f !== hook.caughtFish);
+                    }
+                    hook.reset(); updateUI();
+                }
+            }
+            fishes.forEach(fish => {
+                if (!fish.isCaught) {
+                    fish.x += fish.speed;
+                    if (fish.direction === 1 && fish.x > canvas.width + 70) fish.x = -70;
+                    else if (fish.direction === -1 && fish.x < -70) fish.x = canvas.width + 70;
+                    if (Math.random() < 0.01) fish.bubbles.push({ x: fish.x, y: fish.y, r: Math.random() * 3 + 1, alpha: 1 });
+                    if (hook.isRetracting && !hook.caughtFish) {
+                        const dx = fish.x - hook.x;
+                        const dy = fish.y - hook.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < fish.size + 10) { fish.isCaught = true; hook.caughtFish = fish; playSound('catch'); }
+                    }
+                }
+                fish.bubbles.forEach((b, index) => { b.y -= 0.5; b.alpha -= 0.01; if (b.alpha <= 0) fish.bubbles.splice(index, 1); });
+            });
+        }
+
+        function drawBackground(ctx) {
+            let skyGradient = ctx.createLinearGradient(0, 0, 0, surfaceY);
+            skyGradient.addColorStop(0, "#8b1a0f");
+            skyGradient.addColorStop(0.5, "#d33a18");
+            skyGradient.addColorStop(0.85, "#f37321");
+            skyGradient.addColorStop(1, "#fca835");
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, surfaceY);
+
+            ctx.fillStyle = "#ffe082";
+            ctx.beginPath();
+            ctx.arc(630, 140, 45, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#1a252c";
+            ctx.beginPath();
+            ctx.moveTo(0, surfaceY - 15);
+            ctx.lineTo(190, 120);
+            ctx.lineTo(340, surfaceY - 15);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(250, surfaceY - 15);
+            ctx.lineTo(450, 110);
+            ctx.lineTo(600, surfaceY - 15);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = "#2c3e50";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, surfaceY - 35); ctx.lineTo(canvas.width, surfaceY - 35);
+            ctx.moveTo(0, surfaceY - 22); ctx.lineTo(canvas.width, surfaceY - 22);
+            for(let x = 0; x < canvas.width; x += 30) {
+                ctx.moveTo(x, surfaceY - 35); ctx.lineTo(x, surfaceY - 15);
+            }
+            ctx.stroke();
+
+            ctx.fillStyle = "#2c3e50";
+            ctx.fillRect(0, surfaceY - 15, canvas.width, 15);
+
+            ctx.fillStyle = "#1c2833";
+            ctx.fillRect(110, surfaceY, 35, canvas.height - surfaceY);
+            ctx.fillRect(590, surfaceY, 35, canvas.height - surfaceY);
+
+            let waterGradient = ctx.createLinearGradient(0, surfaceY, 0, canvas.height);
+            waterGradient.addColorStop(0, "#1f4a6e");
+            waterGradient.addColorStop(0.3, "#11304a");
+            waterGradient.addColorStop(1, "#071728");
+            ctx.fillStyle = waterGradient;
+            ctx.fillRect(0, surfaceY, canvas.width, canvas.height - surfaceY);
+
+            ctx.fillStyle = "#f5af3d";
+            ctx.fillRect(0, surfaceY, canvas.width, 3);
+        }
+
+        function drawFisherman(ctx, x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.fillStyle = "#d32f2f"; ctx.fillRect(-10, -35, 20, 25);
+            ctx.fillStyle = "#fbc02d"; ctx.beginPath(); ctx.arc(0, -45, 9, Math.PI, 0); ctx.fill(); ctx.fillRect(-12, -45, 24, 3);
+            ctx.fillStyle = "#ffcc80"; ctx.beginPath(); ctx.arc(0, -42, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#1a237e"; ctx.fillRect(-8, -10, 7, 18); ctx.fillRect(1, -10, 7, 18);
+            ctx.strokeStyle = "#ffcc80"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(15, -22); ctx.stroke();
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground(ctx);
+            drawFisherman(ctx, fishermanX, fishermanY);
+
+            ctx.strokeStyle = currentRod.color;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(fishermanX + 10, fishermanY - 22);
+            ctx.lineTo(fishermanX + 45, fishermanY - 45);
+            ctx.stroke();
+
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(fishermanX + 45, fishermanY - 45);
+            ctx.lineTo(hook.x, hook.y);
+            ctx.stroke();
+
+            ctx.strokeStyle = "#ffd54f";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(hook.x, hook.y, 6, 0, Math.PI);
+            ctx.stroke();
+
+            fishes.forEach(fish => {
+                fish.bubbles.forEach(b => {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${b.alpha})`;
+                    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+                });
+                ctx.save();
+                ctx.translate(fish.x, fish.y);
+                if (fish.direction === -1) ctx.scale(-1, 1);
+                ctx.fillStyle = "rgba(0,0,0,0.2)";
+                ctx.beginPath(); ctx.ellipse(2, 4, fish.size, fish.size / 2.2, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = fish.color;
+                ctx.beginPath(); ctx.ellipse(0, 0, fish.size, fish.size / 2.2, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-fish.size + 2, 0); ctx.lineTo(-fish.size - 10, -8); ctx.lineTo(-fish.size - 6, 0); ctx.lineTo(-fish.size - 10, 8); ctx.closePath(); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-4, -fish.size / 2.2); ctx.quadraticCurveTo(2, -fish.size / 1.2, 8, -fish.size / 2.2); ctx.fill();
+                ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(fish.size / 1.8, -3, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(fish.size / 1.7, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px Courier New"; ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
+                ctx.fillText(`x${fish.multiplier}`, fish.x - 10, fish.y - fish.size / 2 - 6); ctx.shadowBlur = 0;
+            });
+        }
+
+        function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+    </script>
+</body>
+</html>
